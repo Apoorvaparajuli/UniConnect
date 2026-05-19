@@ -1,2 +1,2 @@
-# UniConnect
+# CampusMate
 About University App
