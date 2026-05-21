@@ -12,17 +12,20 @@ import {
 } from "react-native";
 
 const challengeOptions = [
-  "Bridge Design Challenge",
-  "Plant Growth Investigation",
-  "Water Quality Test",
-  "Solar Energy Exploration",
+  "Parachute Drop Challenge",
+  "Sound Pollution Hunter",
+  "Hand Fan Challenge",
+  "Earthquake-Resistant Structure",
+  "Human Performance Lab",
+  "Reaction Board Challenge",
+  "Breathing Pace Trainer",
 ];
 
 export default function AddChallengeResultScreen() {
   const navigation = useNavigation();
 
   const [selectedChallenge, setSelectedChallenge] = useState(
-    "Bridge Design Challenge",
+    "Parachute Drop Challenge",
   );
   const [resultSummary, setResultSummary] = useState("");
   const [observations, setObservations] = useState("");

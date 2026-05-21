@@ -4,19 +4,19 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 const challenges = [
   {
-    title: "Bridge Design Challenge",
+    title: "Parachute Drop Challenge",
     due: "Due 20 May 2024, 11:59 PM",
     priority: "High",
     color: "#FF4D4F",
   },
   {
-    title: "Plant Growth Investigation",
+    title: "Sound Pollution Hunter",
     due: "Due 22 May 2024, 9:00 AM",
     priority: "Medium",
     color: "#FF9F1C",
   },
   {
-    title: "Water Quality Test",
+    title: "Reaction Board Challenge",
     due: "Due 25 May 2024, 5:00 PM",
     priority: "Low",
     color: "#25B46B",
