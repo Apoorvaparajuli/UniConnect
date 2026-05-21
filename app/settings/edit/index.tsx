@@ -14,6 +14,8 @@ import {
 export default function EditProfileScreen() {
   const navigation = useNavigation();
 
+  const [firstName, setFirstName] = useState("Yacqub");
+  const [email, setEmail] = useState("21558232@students.ltu.edu.au");
   const [teamName, setTeamName] = useState("Team Newton");
   const [teamCode, setTeamCode] = useState("STEMM-204");
   const [yearLevel, setYearLevel] = useState("Lower High School");
@@ -58,8 +60,26 @@ export default function EditProfileScreen() {
 
           <Text style={styles.title}>Edit Profile</Text>
           <Text style={styles.text}>
-            Update your team name, members and year level here.
+            Update your account details, team members and year level.
           </Text>
+        </View>
+
+        <View style={styles.formCard}>
+          <Text style={styles.sectionTitle}>Account Details</Text>
+
+          <InputField
+            label="First Name"
+            value={firstName}
+            onChangeText={setFirstName}
+            placeholder="Enter first name"
+          />
+
+          <InputField
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Enter email"
+          />
         </View>
 
         <View style={styles.formCard}>
