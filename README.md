@@ -1,56 +1,221 @@
-# Welcome to your Expo app 👋
+# STEMM Lab
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+STEMM Lab is a mobile application designed for students to participate in collaborative STEMM-based activities and challenges. The application allows users to complete challenges, submit results, access STEMM learning resources, use mobile device features, and collaborate within teams using a modern mobile experience.
 
-## Get started
+This project was developed using Expo and React Native as part of a Mobile Application Development assessment project.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+# Features
 
-2. Start the app
+## Authentication
 
-   ```bash
-   npx expo start
-   ```
+- User Login
+- User Registration
+- Logout Functionality
+- Firebase Authentication Integration
 
-In the output, you'll find options to open the app in a
+## STEMM Challenges
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- View STEMM challenges
+- Challenge detail pages
+- Submit challenge/activity results
+- Progress tracking
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Maps and Location
 
-## Get a fresh project
+- GPS-based challenge locations
+- Interactive map screen
+- Location permission handling
 
-When you're ready, run:
+## Device Features
 
-```bash
-npm run reset-project
+- Torch functionality
+- Battery status monitoring
+- Notifications
+- Camera and location permissions
+
+## Resources
+
+- STEMM learning resources
+- Educational content and materials
+
+## User Profile
+
+- Team/student profile
+- Edit profile settings
+
+## Settings
+
+- Notifications toggle
+- Dark mode toggle
+- Delete account
+- About STEMM Lab
+
+---
+
+# Technologies Used
+
+- Expo
+- React Native
+- TypeScript
+- Expo Router
+- Firebase Authentication
+- Firebase Firestore
+- Firebase Test Lab
+- Jest Testing Framework
+
+---
+
+# Project Structure
+
+```txt
+app/
+  _layout.tsx
+  index.tsx
+
+  login/
+    index.tsx
+
+  register/
+    index.tsx
+
+  home/
+    index.tsx
+
+  tasks/
+    index.tsx
+    add/
+      index.tsx
+    [id]/
+      index.tsx
+
+  map/
+    index.tsx
+
+  safety/
+    index.tsx
+
+  resources/
+    index.tsx
+
+  profile/
+    index.tsx
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Note:
+The `tasks` section represents STEMM Challenges within the application interface.
 
-### Other setup steps
+---
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+# Installation
 
-## Learn more
+## 1. Install dependencies
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm install
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 2. Start the development server
 
-## Join the community
+```bash
+npx expo start
+```
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# Running the App
+
+The app can be opened using:
+
+- Expo Go
+- Android Emulator
+- iOS Simulator
+- Physical Android or iOS device
+
+---
+
+# Firebase Features
+
+The application uses Firebase for:
+
+## Firebase Authentication
+
+Used for:
+
+- Login
+- Registration
+- User session management
+
+## Firebase Firestore
+
+Used for:
+
+- User profile storage
+- Challenge data
+- STEMM activity submissions
+
+## Firebase Test Lab
+
+Used for:
+
+- Automated device testing
+- Compatibility testing
+- Application validation
+
+---
+
+# Device Capabilities
+
+The application demonstrates the use of mobile device capabilities including:
+
+- GPS and Maps
+- Torch
+- Battery monitoring
+- Notifications
+- Camera and permissions
+
+---
+
+# Testing
+
+Testing was completed using:
+
+- Jest Unit Testing
+- Integration Testing
+- End-to-End Testing
+- Firebase Test Lab
+
+---
+
+# Purpose of the Application
+
+STEMM Lab was designed to support collaborative STEMM learning through interactive mobile experiences. The application encourages students to participate in STEMM-based activities using modern mobile technologies and device capabilities.
+
+The project demonstrates:
+
+- Mobile application architecture
+- Firebase integration
+- Sensor and device API usage
+- Agile development practices
+- Testing and deployment workflows
+
+---
+
+# Development Team
+
+Developed as part of a university mobile application development assessment project.
+
+---
+
+# Future Improvements
+
+Potential future improvements include:
+
+- Real-time team chat
+- Advanced leaderboard system
+- More STEMM activity types
+- Offline challenge syncing
+- Enhanced analytics and reporting
+- Push notification scheduling
+- Gamification and achievement badges
