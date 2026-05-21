@@ -54,10 +54,6 @@ export default function HomeScreen() {
             progress.
           </Text>
         </View>
-
-        <View style={styles.notificationCircle}>
-          <Ionicons name="notifications-outline" size={23} color="#fff" />
-        </View>
       </View>
 
       <View style={styles.card}>
