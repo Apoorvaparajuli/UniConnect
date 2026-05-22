@@ -1,22 +1,15 @@
-# Learn more:
-# https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# =========================
-# Dependencies
-# =========================
+# dependencies
 node_modules/
 
-# =========================
 # Expo
-# =========================
 .expo/
 dist/
 web-build/
 expo-env.d.ts
 
-# =========================
-# Native / Android / iOS
-# =========================
+# Native
 .kotlin/
 *.orig.*
 *.jks
@@ -24,58 +17,27 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
-/ios
-/android
 
-# =========================
 # Metro
-# =========================
 .metro-health-check*
 
-# =========================
-# Logs
-# =========================
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
-# =========================
 # macOS
-# =========================
 .DS_Store
 *.pem
 
-# =========================
-# Environment files
-# =========================
-.env
-.env.*
+# local env files
 .env*.local
 
-# =========================
-# TypeScript
-# =========================
+# typescript
 *.tsbuildinfo
 
-# =========================
-# Firebase
-# =========================
-firebase-debug.log
-firebase-debug.*.log
-.firebaserc
-.firebase/
+app-example
 
-# Firebase Hosting
-firebase.json
-*.cache
-hosting/.cache
-
-# Firebase Functions
-functions/node_modules/
-functions/.env
-functions/package-lock.json
-
-# Firebase Emulators
-firebase-*.zip
-emulator-ui/
+# generated native folders
+/ios
+/android
