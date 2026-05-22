@@ -40,7 +40,8 @@ export default function LoginScreen() {
     setLoading(true); // show loading spinner
     try {
       await loginUser(email, password); // try to login
-      router.replace('/home');          // success - go to home
+      // router.replace('/home');          // success - go to home
+      router.replace('/(tabs)/home')
     } catch (error: any) {
       Alert.alert('Login Failed', error.message); // show error message
     } finally {

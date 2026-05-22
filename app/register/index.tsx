@@ -57,7 +57,8 @@ export default function RegisterScreen() {
     try {
       await registerUser(email, password, fullName, grade); // create account in Firebase
       Alert.alert('Success', 'Account created successfully!');
-      router.replace('/home'); // go to home screen on success
+      // router.replace('/home'); // go to home screen on success
+      router.replace('/(tabs)/home')
     } catch (error: any) {
       Alert.alert('Registration Failed', error.message); // show error if failed
     } finally {
