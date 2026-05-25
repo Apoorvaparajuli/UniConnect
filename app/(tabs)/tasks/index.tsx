@@ -43,20 +43,17 @@ export default function ChallengesScreen() {
       loadChallenges();
     }, []),
   );
+
   const loadChallenges = async () => {
     try {
       setLoading(true);
-
       await seedChallenges();
-
       const q = query(collection(db, "challenges"), orderBy("id", "asc"));
       const snapshot = await getDocs(q);
-
       const loadedChallenges = snapshot.docs.map((document) => ({
         ...(document.data() as Challenge),
         id: document.id,
       }));
-
       setChallenges(loadedChallenges);
     } catch (error) {
       console.log("Error loading challenges:", error);
@@ -70,33 +67,39 @@ export default function ChallengesScreen() {
       const matchesSearch =
         challenge.title.toLowerCase().includes(searchText.toLowerCase()) ||
         challenge.description.toLowerCase().includes(searchText.toLowerCase());
-
       const isCompleted = challenge.status === "Completed";
-
       const matchesTab =
         activeTab === "All" ||
         (activeTab === "Completed" && isCompleted) ||
         (activeTab === "Ongoing" && !isCompleted);
-
       return matchesSearch && matchesTab;
     });
   }, [challenges, activeTab, searchText]);
 
   const ongoingCount = challenges.filter(
-    (challenge) => challenge.status !== "Completed",
+    (c) => c.status !== "Completed",
   ).length;
 
   const completedCount = challenges.filter(
-    (challenge) => challenge.status === "Completed",
+    (c) => c.status === "Completed",
   ).length;
 
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Challenges</Text>
-        <Text style={styles.headerSubtitle}>
-          Track and complete your STEMM activities
-        </Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>Challenges</Text>
+          <Text style={styles.headerSubtitle}>
+            Track and complete your STEMM activities
+          </Text>
+        </View>
+
+        <Link href="/tasks/submissions" asChild>
+          <Pressable style={styles.cacheButton}>
+            <Ionicons name="server-outline" size={16} color="#5B2EEA" />
+            <Text style={styles.cacheButtonText}>Local Cache</Text>
+          </Pressable>
+        </Link>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -263,6 +266,45 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#F7F4FF",
+  },
+  header: {
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  headerLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#1D1828",
+    letterSpacing: -0.8,
+  },
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#7A7288",
+  },
+  cacheButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#EEE9FF",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  cacheButtonText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#5B2EEA",
   },
   content: {
     paddingHorizontal: 18,
@@ -442,22 +484,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "800",
-  },
-  header: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: "900",
-    color: "#1D1828",
-    letterSpacing: -0.8,
-  },
-  headerSubtitle: {
-    marginTop: 4,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#7A7288",
   },
 });
