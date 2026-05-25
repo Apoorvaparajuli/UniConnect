@@ -38,7 +38,8 @@
       ],
       "expo-sqlite",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "react-native-google-mobile-ads"
     ],
     "experiments": {
       "typedRoutes": true,
