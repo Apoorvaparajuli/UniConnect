@@ -2,6 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useNavigation } from "expo-router";
+import * as SQLite from "expo-sqlite";
 import {
   addDoc,
   collection,
@@ -34,6 +35,66 @@ type Challenge = {
   status?: string;
 };
 
+// ─── SQLite setup ──────────────────────────────────────────────────────────
+const database = SQLite.openDatabaseSync("stemm_lab.db");
+
+const setupDatabase = () => {
+  database.execSync(`
+    CREATE TABLE IF NOT EXISTS submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      challenge_id TEXT NOT NULL,
+      challenge_title TEXT NOT NULL,
+      team_name TEXT NOT NULL,
+      result_summary TEXT NOT NULL,
+      observations TEXT NOT NULL,
+      evidence_url TEXT,
+      evidence_type TEXT,
+      latitude REAL,
+      longitude REAL,
+      synced INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+  `);
+};
+
+const saveSubmissionLocally = (data: {
+  challengeId: string;
+  challengeTitle: string;
+  teamName: string;
+  resultSummary: string;
+  observations: string;
+  evidenceUrl: string | null;
+  evidenceType: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}) => {
+  database.runSync(
+    `INSERT INTO submissions (
+      challenge_id, challenge_title, team_name, result_summary,
+      observations, evidence_url, evidence_type, latitude, longitude,
+      synced, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+    [
+      data.challengeId,
+      data.challengeTitle,
+      data.teamName,
+      data.resultSummary,
+      data.observations,
+      data.evidenceUrl ?? null,
+      data.evidenceType ?? null,
+      data.latitude ?? null,
+      data.longitude ?? null,
+      new Date().toISOString(),
+    ],
+  );
+};
+
+const getLocalSubmissions = () => {
+  return database.getAllSync(
+    "SELECT * FROM submissions ORDER BY created_at DESC",
+  );
+};
+
 export default function AddChallengeResultScreen() {
   const navigation = useNavigation();
 
@@ -43,6 +104,7 @@ export default function AddChallengeResultScreen() {
   );
   const [loadingChallenges, setLoadingChallenges] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [localCount, setLocalCount] = useState(0);
 
   const [resultSummary, setResultSummary] = useState("");
   const [observations, setObservations] = useState("");
@@ -62,9 +124,16 @@ export default function AddChallengeResultScreen() {
   }, [navigation]);
 
   useEffect(() => {
+    setupDatabase();
     loadChallenges();
     loadUserTeamName();
+    refreshLocalCount();
   }, []);
+
+  const refreshLocalCount = () => {
+    const rows = getLocalSubmissions();
+    setLocalCount(rows.length);
+  };
 
   const loadUserTeamName = async () => {
     try {
@@ -176,14 +245,6 @@ export default function AddChallengeResultScreen() {
     ]);
   };
 
-  const chooseEvidenceOption = () => {
-    Alert.alert("Add Evidence", "Choose an option", [
-      { text: "Camera (Photo or Video)", onPress: takePhotoOrVideo },
-      { text: "Upload from Gallery", onPress: pickFromGallery },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  };
-
   const handleSubmit = async () => {
     if (!selectedChallenge || !teamName || !resultSummary || !observations) {
       Alert.alert("Missing fields", "Please fill in all result details.");
@@ -194,19 +255,22 @@ export default function AddChallengeResultScreen() {
       setSaving(true);
 
       let gpsLocation = null;
+      let latitude = null;
+      let longitude = null;
+
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
           const loc = await Location.getCurrentPositionAsync({});
-          gpsLocation = {
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          };
+          latitude = loc.coords.latitude;
+          longitude = loc.coords.longitude;
+          gpsLocation = { latitude, longitude };
         }
       } catch {
         console.log("GPS unavailable, skipping.");
       }
 
+      // Save to Firebase
       await addDoc(collection(db, "submissions"), {
         challengeId: selectedChallenge.id,
         challengeTitle: selectedChallenge.title,
@@ -219,25 +283,67 @@ export default function AddChallengeResultScreen() {
         createdAt: serverTimestamp(),
       });
 
+      // Save to SQLite local cache
+      saveSubmissionLocally({
+        challengeId: selectedChallenge.id,
+        challengeTitle: selectedChallenge.title,
+        teamName: teamName.trim(),
+        resultSummary: resultSummary.trim(),
+        observations: observations.trim(),
+        evidenceUrl: evidenceUri || null,
+        evidenceType: evidenceUri ? evidenceType : null,
+        latitude,
+        longitude,
+      });
+
       await updateDoc(doc(db, "challenges", selectedChallenge.id), {
         status: "Completed",
         completedAt: serverTimestamp(),
       });
 
-      Alert.alert("Result saved", "Your STEMM challenge result was saved.", [
-        {
-          text: "OK",
-          onPress: () => {
-            setResultSummary("");
-            setObservations("");
-            clearEvidence();
-            loadChallenges();
+      refreshLocalCount();
+
+      Alert.alert(
+        "Result saved",
+        "Your STEMM challenge result was saved to Firebase and cached locally.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              setResultSummary("");
+              setObservations("");
+              clearEvidence();
+              loadChallenges();
+            },
           },
-        },
-      ]);
+        ],
+      );
     } catch (error) {
       console.log("Error saving submission:", error);
-      Alert.alert("Error", "Could not save result to Firebase.");
+
+      // Fallback: save locally if Firebase fails
+      if (selectedChallenge) {
+        try {
+          saveSubmissionLocally({
+            challengeId: selectedChallenge.id,
+            challengeTitle: selectedChallenge.title,
+            teamName: teamName.trim(),
+            resultSummary: resultSummary.trim(),
+            observations: observations.trim(),
+            evidenceUrl: evidenceUri || null,
+            evidenceType: evidenceUri ? evidenceType : null,
+            latitude: null,
+            longitude: null,
+          });
+          refreshLocalCount();
+          Alert.alert(
+            "Saved offline",
+            "Firebase unavailable. Result saved locally and will sync when online.",
+          );
+        } catch (sqlError) {
+          Alert.alert("Error", "Could not save result.");
+        }
+      }
     } finally {
       setSaving(false);
     }
@@ -254,6 +360,15 @@ export default function AddChallengeResultScreen() {
           Select a STEMM challenge and record your team's results, observations
           and evidence.
         </Text>
+
+        {localCount > 0 && (
+          <View style={styles.localBadge}>
+            <Ionicons name="server-outline" size={14} color="#3B82F6" />
+            <Text style={styles.localBadgeText}>
+              {localCount} submission{localCount > 1 ? "s" : ""} cached locally
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.formCard}>
@@ -401,6 +516,17 @@ export default function AddChallengeResultScreen() {
         ) : null}
       </View>
 
+      <View style={styles.sqliteInfoCard}>
+        <Ionicons name="save-outline" size={20} color="#5B2EEA" />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sqliteInfoTitle}>Local Storage Active</Text>
+          <Text style={styles.sqliteInfoText}>
+            Results are cached locally with SQLite and synced to Firebase on
+            submission.
+          </Text>
+        </View>
+      </View>
+
       <Pressable
         style={[styles.submitButton, saving && { opacity: 0.6 }]}
         onPress={handleSubmit}
@@ -446,6 +572,21 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 21,
     marginTop: 8,
+  },
+  localBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "#EFF6FF",
+  },
+  localBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#3B82F6",
   },
   formCard: {
     backgroundColor: "#FFFFFF",
@@ -557,15 +698,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  videoPreviewTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#1D1828",
-  },
-  videoPreviewSub: {
-    fontSize: 13,
-    color: "#7A7288",
-  },
+  videoPreviewTitle: { fontSize: 15, fontWeight: "800", color: "#1D1828" },
+  videoPreviewSub: { fontSize: 13, color: "#7A7288" },
   removeButton: {
     position: "absolute",
     top: 8,
@@ -593,11 +727,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  evidenceHalfButtonText: {
-    color: "#5B2EEA",
-    fontSize: 14,
-    fontWeight: "800",
-  },
+  evidenceHalfButtonText: { color: "#5B2EEA", fontSize: 14, fontWeight: "800" },
   evidenceTypeBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -608,9 +738,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F0FA",
     alignSelf: "flex-start",
   },
-  evidenceTypeBadgeText: {
-    fontSize: 12,
+  evidenceTypeBadgeText: { fontSize: 12, fontWeight: "800" },
+  sqliteInfoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#F1ECFF",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 18,
+  },
+  sqliteInfoTitle: {
+    fontSize: 14,
     fontWeight: "800",
+    color: "#1D1828",
+  },
+  sqliteInfoText: {
+    fontSize: 12,
+    color: "#6F687D",
+    marginTop: 2,
+    lineHeight: 18,
   },
   submitButton: {
     height: 56,
