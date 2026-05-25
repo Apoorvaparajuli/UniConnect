@@ -1,27 +1,27 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Link } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
-const challenges = [
-  {
-    title: "Parachute Drop Challenge",
-    due: "Due 20 May 2024, 11:59 PM",
-    priority: "High",
-    color: "#FF4D4F",
-  },
-  {
-    title: "Sound Pollution Hunter",
-    due: "Due 22 May 2024, 9:00 AM",
-    priority: "Medium",
-    color: "#FF9F1C",
-  },
-  {
-    title: "Reaction Board Challenge",
-    due: "Due 25 May 2024, 5:00 PM",
-    priority: "Low",
-    color: "#25B46B",
-  },
-];
+import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { auth, db } from "../../../lib/firebase";
+
+type Challenge = {
+  id: string;
+  title: string;
+  due: string;
+  priority: string;
+  color: string;
+  icon?: string;
+  status?: "To Do" | "Ongoing" | "Completed";
+};
 
 function GridButton({
   href,
@@ -43,12 +43,54 @@ function GridButton({
 }
 
 export default function HomeScreen() {
+  const [loading, setLoading] = useState(true);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [userName, setUserName] = useState("Student");
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+
+      const currentUser = auth.currentUser;
+      if (currentUser?.displayName) {
+        setUserName(currentUser.displayName);
+      }
+
+      const q = query(
+        collection(db, "challenges"),
+        orderBy("id", "asc"),
+        limit(20),
+      );
+
+      const snapshot = await getDocs(q);
+      const loadedChallenges = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...(docSnap.data() as Omit<Challenge, "id">),
+      }));
+
+      setChallenges(loadedChallenges);
+    } catch (error) {
+      console.log("Error loading home data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const visibleChallenges = useMemo(
+    () => challenges.filter((c) => c.status !== "Completed"),
+    [challenges],
+  );
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.smallText}>Welcome back,</Text>
-          <Text style={styles.name}>Yacqub Ali 👋</Text>
+          <Text style={styles.name}>{userName} 👋</Text>
           <Text style={styles.caption}>
             Complete STEMM challenges, explore resources, and track your team
             progress.
@@ -64,33 +106,60 @@ export default function HomeScreen() {
           </Link>
         </View>
 
-        {challenges.map((item) => (
-          <View key={item.title} style={styles.challengeRow}>
-            <View style={[styles.iconBox, { backgroundColor: item.color }]}>
-              <MaterialCommunityIcons
-                name="flask-outline"
-                size={22}
-                color="#fff"
-              />
-            </View>
-
-            <View style={{ flex: 1 }}>
-              <Text style={styles.challengeTitle}>{item.title}</Text>
-              <Text style={styles.challengeDue}>{item.due}</Text>
-            </View>
-
-            <View
-              style={[
-                styles.priorityBadge,
-                { backgroundColor: `${item.color}18` },
-              ]}
-            >
-              <Text style={[styles.priorityText, { color: item.color }]}>
-                {item.priority}
-              </Text>
-            </View>
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color="#5B2EEA" />
+            <Text style={styles.loadingText}>Loading challenges...</Text>
           </View>
-        ))}
+        ) : visibleChallenges.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Ionicons name="document-text-outline" size={28} color="#9A94A6" />
+            <Text style={styles.emptyTitle}>No challenges yet</Text>
+            <Text style={styles.emptyText}>
+              Challenges from Firebase will appear here.
+            </Text>
+          </View>
+        ) : (
+          visibleChallenges.map((item) => (
+            <Link key={item.id} href={`/tasks/${item.id}`} asChild>
+              <Pressable style={styles.challengeRow}>
+                <View
+                  style={[
+                    styles.iconBox,
+                    { backgroundColor: item.color || "#5B2EEA" },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={(item.icon as any) || "flask-outline"}
+                    size={22}
+                    color="#FFFFFF"
+                  />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.challengeTitle}>{item.title}</Text>
+                  <Text style={styles.challengeDue}>{item.due}</Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.priorityBadge,
+                    { backgroundColor: `${item.color}18` },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.priorityText,
+                      { color: item.color || "#5B2EEA" },
+                    ]}
+                  >
+                    {item.priority}
+                  </Text>
+                </View>
+              </Pressable>
+            </Link>
+          ))
+        )}
       </View>
 
       <View style={styles.grid}>
@@ -101,31 +170,26 @@ export default function HomeScreen() {
             <MaterialCommunityIcons name="flask" size={38} color="#6C3DEB" />
           }
         />
-
         <GridButton
           href="/map"
           title="Challenge Map"
           icon={<Ionicons name="location" size={38} color="#35B86B" />}
         />
-
         <GridButton
           href="/safety"
           title="Activity Tools"
           icon={<Ionicons name="shield-checkmark" size={38} color="#FF9F1C" />}
         />
-
         <GridButton
           href="/resources"
           title="Resources"
           icon={<Ionicons name="book" size={38} color="#3B82F6" />}
         />
-
         <GridButton
           href="/profile"
           title="Team"
           icon={<Ionicons name="people" size={38} color="#7C3AED" />}
         />
-
         <GridButton
           href="/settings"
           title="Settings"
@@ -137,13 +201,8 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F7F4FF",
-  },
-  content: {
-    paddingBottom: 110,
-  },
+  screen: { flex: 1, backgroundColor: "#F7F4FF" },
+  content: { paddingBottom: 110 },
   header: {
     minHeight: 215,
     backgroundColor: "#5B2EEA",
@@ -156,30 +215,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 14,
   },
-  smallText: {
-    color: "#EEE8FF",
-    fontSize: 15,
-    marginBottom: 6,
-  },
-  name: {
-    color: "#FFFFFF",
-    fontSize: 31,
-    fontWeight: "800",
-  },
-  caption: {
-    color: "#EEE8FF",
-    fontSize: 15,
-    marginTop: 8,
-    lineHeight: 22,
-  },
-  notificationCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  smallText: { color: "#EEE8FF", fontSize: 15, marginBottom: 6 },
+  name: { color: "#FFFFFF", fontSize: 31, fontWeight: "800" },
+  caption: { color: "#EEE8FF", fontSize: 15, marginTop: 8, lineHeight: 22 },
   card: {
     backgroundColor: "#FFFFFF",
     marginHorizontal: 20,
@@ -197,16 +235,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#181024",
-  },
-  viewAll: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#5B2EEA",
-  },
+  sectionTitle: { fontSize: 20, fontWeight: "800", color: "#181024" },
+  viewAll: { fontSize: 14, fontWeight: "700", color: "#5B2EEA" },
   challengeRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -222,24 +252,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  challengeTitle: {
+  challengeTitle: { fontSize: 16, fontWeight: "800", color: "#1D1828" },
+  challengeDue: { fontSize: 13, color: "#7A7288", marginTop: 4 },
+  priorityBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9 },
+  priorityText: { fontSize: 11, fontWeight: "800" },
+  loadingBox: { paddingVertical: 26, alignItems: "center", gap: 10 },
+  loadingText: { fontSize: 13, fontWeight: "700", color: "#7A7288" },
+  emptyBox: { paddingVertical: 26, alignItems: "center" },
+  emptyTitle: {
+    marginTop: 8,
     fontSize: 16,
     fontWeight: "800",
     color: "#1D1828",
   },
-  challengeDue: {
+  emptyText: {
+    marginTop: 4,
     fontSize: 13,
     color: "#7A7288",
-    marginTop: 4,
-  },
-  priorityBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 9,
-  },
-  priorityText: {
-    fontSize: 11,
-    fontWeight: "800",
+    textAlign: "center",
   },
   grid: {
     flexDirection: "row",
@@ -255,7 +285,6 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "column",
     gap: 12,
     shadowColor: "#000",
     shadowOpacity: 0.05,
