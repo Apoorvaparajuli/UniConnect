@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "expo-router";
-import { useLayoutEffect, useState } from "react";
+import { updateProfile } from "firebase/auth";
+import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { useEffect, useLayoutEffect, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -10,16 +12,20 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { auth, db } from "../../../lib/firebase";
 
 export default function EditProfileScreen() {
   const navigation = useNavigation();
 
-  const [firstName, setFirstName] = useState("Yacqub");
-  const [email, setEmail] = useState("21558232@students.ltu.edu.au");
-  const [teamName, setTeamName] = useState("Team Newton");
-  const [teamCode, setTeamCode] = useState("STEMM-204");
-  const [yearLevel, setYearLevel] = useState("Lower High School");
-  const [members, setMembers] = useState(["Yacqub Ali", "Apoorva Parajuli"]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [firstName, setFirstName] = useState("");
+  const [email, setEmail] = useState("");
+  const [teamName, setTeamName] = useState("");
+  const [teamCode, setTeamCode] = useState("");
+  const [yearLevel, setYearLevel] = useState("");
+  const [members, setMembers] = useState<string[]>([""]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -32,6 +38,58 @@ export default function EditProfileScreen() {
     });
   }, [navigation]);
 
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const currentUser = auth.currentUser;
+
+      if (!currentUser) {
+        setLoading(false);
+        return;
+      }
+
+      setEmail(currentUser.email || "");
+      setFirstName(currentUser.displayName || "");
+
+      const userRef = doc(db, "users", currentUser.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        setLoading(false);
+        return;
+      }
+
+      const data = userSnap.data();
+
+      const savedTeamCode = data.teamCode || "";
+      let savedTeamName = data.teamName || "";
+
+      if (!savedTeamName && savedTeamCode) {
+        const teamSnap = await getDoc(doc(db, "teams", savedTeamCode));
+
+        if (teamSnap.exists()) {
+          const teamData = teamSnap.data();
+          savedTeamName = teamData.teamName || teamData.name || "";
+        }
+      }
+
+      setFirstName(data.firstName || currentUser.displayName || "");
+      setEmail(data.email || currentUser.email || "");
+      setTeamName(savedTeamName);
+      setTeamCode(savedTeamCode);
+      setYearLevel(data.yearLevel || "");
+      setMembers(data.members?.length ? data.members : [""]);
+    } catch (error) {
+      console.log("Load profile error:", error);
+      Alert.alert("Error", "Failed to load profile.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateMember = (index: number, value: string) => {
     const updatedMembers = [...members];
     updatedMembers[index] = value;
@@ -43,12 +101,56 @@ export default function EditProfileScreen() {
   };
 
   const removeMember = (index: number) => {
-    setMembers(members.filter((_, memberIndex) => memberIndex !== index));
+    const updatedMembers = members.filter(
+      (_, memberIndex) => memberIndex !== index,
+    );
+
+    setMembers(updatedMembers.length ? updatedMembers : [""]);
   };
 
-  const handleSave = () => {
-    Alert.alert("Saved", "Profile changes saved locally.");
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+
+      const currentUser = auth.currentUser;
+
+      if (!currentUser) {
+        Alert.alert("Error", "You are not logged in.");
+        return;
+      }
+
+      const cleanMembers = members
+        .map((member) => member.trim())
+        .filter(Boolean);
+
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        firstName: firstName.trim(),
+        teamName: teamName.trim(),
+        yearLevel: yearLevel.trim(),
+        members: cleanMembers,
+        updatedAt: serverTimestamp(),
+      });
+
+      await updateProfile(currentUser, {
+        displayName: firstName.trim(),
+      });
+
+      Alert.alert("Saved", "Profile updated successfully.");
+    } catch (error) {
+      console.log("Save profile error:", error);
+      Alert.alert("Error", "Failed to save changes.");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingScreen}>
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -59,6 +161,7 @@ export default function EditProfileScreen() {
           </View>
 
           <Text style={styles.title}>Edit Profile</Text>
+
           <Text style={styles.text}>
             Update your account details, team members and year level.
           </Text>
@@ -77,8 +180,9 @@ export default function EditProfileScreen() {
           <InputField
             label="Email"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={() => {}}
             placeholder="Enter email"
+            editable={false}
           />
         </View>
 
@@ -95,8 +199,9 @@ export default function EditProfileScreen() {
           <InputField
             label="Team Code"
             value={teamCode}
-            onChangeText={setTeamCode}
-            placeholder="Enter team code"
+            onChangeText={() => {}}
+            placeholder="Team code"
+            editable={false}
           />
 
           <InputField
@@ -138,9 +243,16 @@ export default function EditProfileScreen() {
           </Pressable>
         </View>
 
-        <Pressable style={styles.saveButton} onPress={handleSave}>
+        <Pressable
+          style={[styles.saveButton, saving && { opacity: 0.6 }]}
+          onPress={handleSave}
+          disabled={saving}
+        >
           <Ionicons name="checkmark-circle-outline" size={22} color="#FFFFFF" />
-          <Text style={styles.saveButtonText}>Save Changes</Text>
+
+          <Text style={styles.saveButtonText}>
+            {saving ? "Saving..." : "Save Changes"}
+          </Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -152,21 +264,25 @@ function InputField({
   value,
   onChangeText,
   placeholder,
+  editable = true,
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
+  editable?: boolean;
 }) {
   return (
     <View style={styles.inputGroup}>
       <Text style={styles.inputLabel}>{label}</Text>
+
       <TextInput
-        style={styles.input}
+        style={[styles.input, !editable && styles.disabledInput]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#A39BAD"
+        editable={editable}
       />
     </View>
   );
@@ -176,6 +292,17 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#F7F4FF",
+  },
+  loadingScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F7F4FF",
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1D1828",
   },
   content: {
     padding: 18,
@@ -238,6 +365,10 @@ const styles = StyleSheet.create({
     color: "#1D1828",
     borderWidth: 1,
     borderColor: "#E5DDF7",
+  },
+  disabledInput: {
+    backgroundColor: "#ECE8F8",
+    color: "#7A7288",
   },
   memberInputRow: {
     flexDirection: "row",
