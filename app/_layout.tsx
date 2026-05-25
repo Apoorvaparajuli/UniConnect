@@ -3,15 +3,114 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
+import * as BackgroundFetch from "expo-background-fetch";
+import * as Notifications from "expo-notifications";
 import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as TaskManager from "expo-task-manager";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { useEffect, useState } from "react";
+import { doc, setDoc } from "firebase/firestore";
+import { useEffect, useRef, useState } from "react";
 import { useColorScheme } from "react-native";
 import "react-native-reanimated";
 
-import { auth } from "../lib/firebase";
+import { auth, db } from "../lib/firebase";
 
+const BACKGROUND_TASK = "check-challenge-reminders";
+
+// ─── Background Task ───────────────────────────────────────────────────────
+TaskManager.defineTask(BACKGROUND_TASK, async () => {
+  console.log("Background task: checking challenge reminders");
+  return BackgroundFetch.BackgroundFetchResult.NewData;
+});
+
+const registerBackgroundTask = async () => {
+  try {
+    const isRegistered =
+      await TaskManager.isTaskRegisteredAsync(BACKGROUND_TASK);
+    if (!isRegistered) {
+      await BackgroundFetch.registerTaskAsync(BACKGROUND_TASK, {
+        minimumInterval: 60 * 60,
+        stopOnTerminate: false,
+        startOnBoot: true,
+      });
+      console.log("Background task registered");
+    }
+  } catch (error) {
+    console.log("Background task registration failed:", error);
+  }
+};
+
+// ─── Notification Handler ──────────────────────────────────────────────────
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+const registerForNotificationsAsync = async (userId: string) => {
+  try {
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus === "undetermined") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== "granted") {
+      console.log("Push notification permission denied");
+      return;
+    }
+
+    // Note: getExpoPushTokenAsync requires Apple Developer account for iOS
+    // Local notifications work without this — skipped for development
+    console.log(
+      "Notification permissions granted — local notifications active",
+    );
+
+    // Save notification preference to Firestore
+    await setDoc(
+      doc(db, "users", userId),
+      { notificationsEnabled: true },
+      { merge: true },
+    );
+  } catch (error) {
+    console.log("Notification registration failed:", error);
+  }
+};
+
+const scheduleChallengeReminder = async () => {
+  try {
+    // Cancel existing reminders first to avoid duplicates
+    await Notifications.cancelAllScheduledNotificationsAsync();
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "STEMM Lab",
+        body: "You have upcoming challenges to complete!",
+        sound: true,
+        data: { url: "/tasks" },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 60 * 60 * 24,
+        repeats: true,
+      },
+    });
+
+    console.log("Challenge reminder scheduled");
+  } catch (error) {
+    console.log("Notification scheduling failed:", error);
+  }
+};
+
+// ─── Root Layout ───────────────────────────────────────────────────────────
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
@@ -19,21 +118,70 @@ export default function RootLayout() {
 
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
+  // Auth state listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setReady(true);
     });
-
     return unsubscribe;
   }, []);
 
+  // Register background task on app start
+  useEffect(() => {
+    registerBackgroundTask();
+  }, []);
+
+  // Register notifications and schedule reminders when user signs in
+  useEffect(() => {
+    if (!user) return;
+
+    registerForNotificationsAsync(user.uid);
+    scheduleChallengeReminder();
+
+    // Listen for notifications received while app is open
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener((notification) => {
+        console.log("Notification received:", notification);
+      });
+
+    // Handle notification tap — navigate to the relevant screen
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        const url = response.notification.request.content.data?.url as
+          | string
+          | undefined;
+        if (url?.startsWith("/")) {
+          router.push(url as any);
+        }
+      });
+
+    return () => {
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
+    };
+  }, [user, router]);
+
+  // Handle last notification tap if app was closed
+  useEffect(() => {
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      const url = response?.notification.request.content.data?.url as
+        | string
+        | undefined;
+      if (url?.startsWith("/")) {
+        router.push(url as any);
+      }
+    });
+  }, [router]);
+
+  // Auth-based routing
   useEffect(() => {
     if (!ready) return;
 
     const isSignedIn = !!user;
-
     const isPublicRoute =
       pathname === "/welcome" ||
       pathname === "/login" ||
@@ -57,7 +205,6 @@ export default function RootLayout() {
         <Stack.Screen name="welcome" />
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
-
         <Stack.Screen name="home" />
         <Stack.Screen name="tasks" />
         <Stack.Screen name="map" />
@@ -65,8 +212,8 @@ export default function RootLayout() {
         <Stack.Screen name="resources" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="submissions" />
       </Stack>
-
       <StatusBar style="auto" />
     </ThemeProvider>
   );

@@ -13,6 +13,19 @@ import {
 import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { auth, db } from "../../../lib/firebase";
 
+// Safe AdMob import — won't crash Expo Go
+let BannerAd: any = null;
+let BannerAdSize: any = null;
+let TestIds: any = null;
+try {
+  const admob = require("react-native-google-mobile-ads");
+  BannerAd = admob.BannerAd;
+  BannerAdSize = admob.BannerAdSize;
+  TestIds = admob.TestIds;
+} catch (e) {
+  console.log("AdMob not available in Expo Go");
+}
+
 type Challenge = {
   id: string;
   title: string;
@@ -97,6 +110,23 @@ export default function HomeScreen() {
           </Text>
         </View>
       </View>
+
+      {/* AdMob Banner - requires native build, safely skipped in Expo Go */}
+      {BannerAd && BannerAdSize && TestIds && (
+        <View style={styles.adContainer}>
+          <BannerAd
+            unitId={TestIds.BANNER}
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{
+              requestNonPersonalizedAdsOnly: true,
+            }}
+            onAdLoaded={() => console.log("AdMob banner loaded")}
+            onAdFailedToLoad={(error: any) =>
+              console.log("AdMob banner failed:", error)
+            }
+          />
+        </View>
+      )}
 
       <View style={styles.card}>
         <View style={styles.rowBetween}>
@@ -218,10 +248,16 @@ const styles = StyleSheet.create({
   smallText: { color: "#EEE8FF", fontSize: 15, marginBottom: 6 },
   name: { color: "#FFFFFF", fontSize: 31, fontWeight: "800" },
   caption: { color: "#EEE8FF", fontSize: 15, marginTop: 8, lineHeight: 22 },
+  adContainer: {
+    alignItems: "center",
+    marginTop: -20,
+    marginBottom: 6,
+    zIndex: 10,
+  },
   card: {
     backgroundColor: "#FFFFFF",
     marginHorizontal: 20,
-    marginTop: -30,
+    marginTop: 10,
     borderRadius: 26,
     padding: 22,
     shadowColor: "#000",
@@ -254,7 +290,11 @@ const styles = StyleSheet.create({
   },
   challengeTitle: { fontSize: 16, fontWeight: "800", color: "#1D1828" },
   challengeDue: { fontSize: 13, color: "#7A7288", marginTop: 4 },
-  priorityBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9 },
+  priorityBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 9,
+  },
   priorityText: { fontSize: 11, fontWeight: "800" },
   loadingBox: { paddingVertical: 26, alignItems: "center", gap: 10 },
   loadingText: { fontSize: 13, fontWeight: "700", color: "#7A7288" },
