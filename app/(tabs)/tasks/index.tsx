@@ -1,6 +1,8 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Link } from "expo-router";
+import { Link, router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,46 +12,84 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const challenges = [
-  {
-    id: "1",
-    title: "Parachute Drop Challenge",
-    description: "Design and test a parachute to slow a toy's fall.",
-    due: "Due 20 May 2024",
-    priority: "High",
-    color: "#FF4D4F",
-    icon: "parachute",
-  },
-  {
-    id: "2",
-    title: "Sound Pollution Hunter",
-    description: "Measure and record noisy areas using phone sensors.",
-    due: "Due 22 May 2024",
-    priority: "Medium",
-    color: "#FF9F1C",
-    icon: "volume-high",
-  },
-  {
-    id: "3",
-    title: "Reaction Board Challenge",
-    description: "Test reaction speed and compare team results.",
-    due: "Due 25 May 2024",
-    priority: "Low",
-    color: "#25B46B",
-    icon: "gesture-tap",
-  },
-  {
-    id: "4",
-    title: "Earthquake-Resistant Structure",
-    description: "Build and improve a structure that survives shaking.",
-    due: "Due 28 May 2024",
-    priority: "Medium",
-    color: "#3B82F6",
-    icon: "office-building",
-  },
-];
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { db } from "../../../lib/firebase";
+import { seedChallenges } from "../../../lib/seedChallenges";
+
+type Challenge = {
+  id: string;
+  title: string;
+  description: string;
+  due: string;
+  priority: string;
+  color: string;
+  icon: string;
+  status?: "To Do" | "Ongoing" | "Completed";
+  category?: string;
+  difficulty?: string;
+  tasks?: string[];
+};
+
+type ActiveTab = "All" | "Ongoing" | "Completed";
 
 export default function ChallengesScreen() {
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("All");
+  const [searchText, setSearchText] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      loadChallenges();
+    }, []),
+  );
+  const loadChallenges = async () => {
+    try {
+      setLoading(true);
+
+      await seedChallenges();
+
+      const q = query(collection(db, "challenges"), orderBy("id", "asc"));
+      const snapshot = await getDocs(q);
+
+      const loadedChallenges = snapshot.docs.map((document) => ({
+        ...(document.data() as Challenge),
+        id: document.id,
+      }));
+
+      setChallenges(loadedChallenges);
+    } catch (error) {
+      console.log("Error loading challenges:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredChallenges = useMemo(() => {
+    return challenges.filter((challenge) => {
+      const matchesSearch =
+        challenge.title.toLowerCase().includes(searchText.toLowerCase()) ||
+        challenge.description.toLowerCase().includes(searchText.toLowerCase());
+
+      const isCompleted = challenge.status === "Completed";
+
+      const matchesTab =
+        activeTab === "All" ||
+        (activeTab === "Completed" && isCompleted) ||
+        (activeTab === "Ongoing" && !isCompleted);
+
+      return matchesSearch && matchesTab;
+    });
+  }, [challenges, activeTab, searchText]);
+
+  const ongoingCount = challenges.filter(
+    (challenge) => challenge.status !== "Completed",
+  ).length;
+
+  const completedCount = challenges.filter(
+    (challenge) => challenge.status === "Completed",
+  ).length;
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
@@ -58,6 +98,7 @@ export default function ChallengesScreen() {
           Track and complete your STEMM activities
         </Text>
       </View>
+
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
@@ -66,83 +107,152 @@ export default function ChallengesScreen() {
               placeholder="Search challenges..."
               placeholderTextColor="#9A94A6"
               style={styles.searchInput}
+              value={searchText}
+              onChangeText={setSearchText}
             />
           </View>
-
-          <Pressable style={styles.filterButton}>
-            <Ionicons name="filter" size={20} color="#5B2EEA" />
-          </Pressable>
         </View>
 
         <View style={styles.tabs}>
-          <Pressable style={[styles.tab, styles.activeTab]}>
-            <Text style={[styles.tabText, styles.activeTabText]}>All</Text>
+          <Pressable
+            style={[styles.tab, activeTab === "All" && styles.activeTab]}
+            onPress={() => setActiveTab("All")}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "All" && styles.activeTabText,
+              ]}
+            >
+              All
+            </Text>
           </Pressable>
-          <Pressable style={styles.tab}>
-            <Text style={styles.tabText}>Ongoing</Text>
+
+          <Pressable
+            style={[styles.tab, activeTab === "Ongoing" && styles.activeTab]}
+            onPress={() => setActiveTab("Ongoing")}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "Ongoing" && styles.activeTabText,
+              ]}
+            >
+              Ongoing {ongoingCount}
+            </Text>
           </Pressable>
-          <Pressable style={styles.tab}>
-            <Text style={styles.tabText}>Completed</Text>
+
+          <Pressable
+            style={[styles.tab, activeTab === "Completed" && styles.activeTab]}
+            onPress={() => setActiveTab("Completed")}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "Completed" && styles.activeTabText,
+              ]}
+            >
+              Completed {completedCount}
+            </Text>
           </Pressable>
         </View>
 
-        <View style={styles.list}>
-          {challenges.map((challenge) => (
-            <Link key={challenge.id} href={`/tasks/${challenge.id}`} asChild>
-              <Pressable style={styles.card}>
-                <View style={styles.iconWrap}>
-                  <MaterialCommunityIcons
-                    name={challenge.icon as any}
-                    size={34}
-                    color={challenge.color}
-                  />
-                </View>
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color="#5B2EEA" />
+            <Text style={styles.loadingText}>Loading challenges...</Text>
+          </View>
+        ) : filteredChallenges.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Ionicons name="search-outline" size={26} color="#9A94A6" />
+            <Text style={styles.emptyTitle}>No challenges found</Text>
+            <Text style={styles.emptyText}>
+              Try another tab or search term.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.list}>
+            {filteredChallenges.map((challenge) => {
+              const isCompleted = challenge.status === "Completed";
 
-                <View style={styles.cardMiddle}>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.cardTitle}>{challenge.title}</Text>
-                    <View
-                      style={[
-                        styles.priorityBadge,
-                        { backgroundColor: `${challenge.color}18` },
-                      ]}
-                    >
-                      <Text
+              return (
+                <Pressable
+                  key={challenge.id}
+                  style={styles.card}
+                  onPress={() => router.push(`/tasks/${challenge.id}`)}
+                >
+                  <View style={styles.iconWrap}>
+                    <MaterialCommunityIcons
+                      name={challenge.icon as any}
+                      size={34}
+                      color={challenge.color}
+                    />
+                  </View>
+
+                  <View style={styles.cardMiddle}>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.cardTitle}>{challenge.title}</Text>
+
+                      <View
                         style={[
-                          styles.priorityText,
-                          { color: challenge.color },
+                          styles.priorityBadge,
+                          {
+                            backgroundColor: isCompleted
+                              ? "#E9F8EF"
+                              : `${challenge.color}18`,
+                          },
                         ]}
                       >
-                        {challenge.priority}
+                        <Text
+                          style={[
+                            styles.priorityText,
+                            {
+                              color: isCompleted ? "#1F8F4D" : challenge.color,
+                            },
+                          ]}
+                        >
+                          {isCompleted ? "Completed" : challenge.priority}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.description}>
+                      {challenge.description}
+                    </Text>
+
+                    <View style={styles.dueRow}>
+                      <Ionicons
+                        name={
+                          isCompleted
+                            ? "checkmark-circle-outline"
+                            : "calendar-outline"
+                        }
+                        size={14}
+                        color={isCompleted ? "#1F8F4D" : "#7A7288"}
+                      />
+                      <Text
+                        style={[
+                          styles.dueText,
+                          isCompleted && styles.completedDueText,
+                        ]}
+                      >
+                        {isCompleted ? "Completed" : challenge.due}
                       </Text>
                     </View>
                   </View>
 
-                  <Text style={styles.description}>
-                    {challenge.description}
-                  </Text>
-
-                  <View style={styles.dueRow}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={14}
-                      color="#7A7288"
-                    />
-                    <Text style={styles.dueText}>{challenge.due}</Text>
-                  </View>
-                </View>
-
-                <Ionicons name="chevron-forward" size={20} color="#9A94A6" />
-              </Pressable>
-            </Link>
-          ))}
-        </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9A94A6" />
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
 
       <Link href="/tasks/add" asChild>
         <Pressable style={styles.addButton}>
           <Ionicons name="add" size={24} color="#FFFFFF" />
-          <Text style={styles.addButtonText}>Add Challenge Result</Text>
+          <Text style={styles.addButtonText}>Submit Result</Text>
         </Pressable>
       </Link>
     </SafeAreaView>
@@ -217,6 +327,36 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: "#FFFFFF",
   },
+  loadingBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 22,
+    alignItems: "center",
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#7A7288",
+  },
+  emptyBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+  },
+  emptyTitle: {
+    marginTop: 8,
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#1D1828",
+  },
+  emptyText: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#7A7288",
+  },
   list: {
     gap: 14,
   },
@@ -272,6 +412,10 @@ const styles = StyleSheet.create({
     color: "#7A7288",
     fontWeight: "600",
   },
+  completedDueText: {
+    color: "#1F8F4D",
+    fontWeight: "800",
+  },
   priorityBadge: {
     paddingHorizontal: 8,
     paddingVertical: 5,
@@ -293,10 +437,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    elevation: 4,
   },
   addButtonText: {
     color: "#FFFFFF",
