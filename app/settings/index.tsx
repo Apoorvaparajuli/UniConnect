@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Link, useNavigation } from "expo-router";
+import { Link, router, useNavigation } from "expo-router";
+import { signOut } from "firebase/auth";
 import { useLayoutEffect, useState } from "react";
 import {
   Alert,
@@ -10,6 +11,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { auth } from "../../lib/firebase";
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
@@ -85,10 +87,27 @@ export default function SettingsScreen() {
             title="Logout"
             subtitle="Sign out of your account"
             onPress={() =>
-              Alert.alert("Logout", "Firebase logout will be connected later.")
+              Alert.alert("Logout", "Are you sure you want to logout?", [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Logout",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      await signOut(auth);
+                      router.replace("/welcome");
+                    } catch (error) {
+                      console.log("Logout error:", error);
+                      Alert.alert(
+                        "Error",
+                        "Failed to logout. Please try again.",
+                      );
+                    }
+                  },
+                },
+              ])
             }
           />
-
           <SettingButton
             icon="trash-outline"
             title="Delete Account"
