@@ -1,11 +1,12 @@
 import { Link, router } from "expo-router";
 import {
-    Alert,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 export default function LoginScreen() {
@@ -16,7 +17,11 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>STEM Learning App</Text>
+      <Image
+        source={require("../../assets/images/campuslogo.png")}
+        style={styles.logo}
+      />
+      <Text style={styles.title}>CampusMate</Text>
       <Text style={styles.subtitle}>Login to continue</Text>
 
       <TextInput
@@ -32,9 +37,12 @@ export default function LoginScreen() {
         <Text style={styles.buttonText}>Login</Text>
       </Pressable>
 
-      <Link href="/register" style={styles.link}>
-        Create new account
-      </Link>
+      <Text style={styles.linkText}>
+        Don't have an account?{" "}
+        <Link href="/register" style={styles.link}>
+          Register
+        </Link>
+      </Text>
     </View>
   );
 }
@@ -84,4 +92,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "600",
   },
+  logo: {
+    width: 80,
+    height: 80,
+    resizeMode: "contain",
+    alignSelf: "center",
+    marginBottom: 10,
+  },
+  linkText: { marginTop: 20, textAlign: "center", color: "#64748B" },
 });
