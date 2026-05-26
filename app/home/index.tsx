@@ -1,12 +1,21 @@
+import { signOut } from "firebase/auth";
+
 import { router } from "expo-router";
+import { auth } from "../../firebaseConfig";
+
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function HomeScreen() {
+  const handleLogout = async () => {
+    await signOut(auth);
+
+    router.replace("/login");
+  };
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.replace("/login")}>
+        <Pressable onPress={handleLogout}>
           <Text style={styles.backArrow}>←</Text>
         </Pressable>
 

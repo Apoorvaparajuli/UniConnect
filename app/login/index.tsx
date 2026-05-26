@@ -1,4 +1,9 @@
 import { Link, router } from "expo-router";
+import { signInWithEmailAndPassword } from "firebase/auth";
+
+import React, { useState } from "react";
+import { auth } from "../../firebaseConfig";
+
 import {
   Alert,
   Image,
@@ -10,9 +15,19 @@ import {
 } from "react-native";
 
 export default function LoginScreen() {
-  const handleLogin = () => {
-    Alert.alert("Login", "Firebase login will be connected here.");
-    router.replace("/home");
+  const [email, setEmail] = useState("");
+
+  const [password, setPassword] = useState("");
+  const handleLogin = async () => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+
+      Alert.alert("Success", "Logged in!");
+
+      router.replace("/home");
+    } catch (error: any) {
+      Alert.alert("Login Error", error.message);
+    }
   };
 
   return (
@@ -29,9 +44,17 @@ export default function LoginScreen() {
         placeholder="Email"
         keyboardType="email-address"
         autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
       />
 
-      <TextInput style={styles.input} placeholder="Password" secureTextEntry />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
 
       <Pressable style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Login</Text>

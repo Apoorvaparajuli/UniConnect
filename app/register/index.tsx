@@ -1,5 +1,12 @@
+import React, { useState } from "react";
+
 import { router } from "expo-router";
-import React from "react";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+
+import { doc, setDoc } from "firebase/firestore";
+
+import { auth, db } from "../../firebaseConfig";
+
 import {
   Alert,
   Pressable,
@@ -10,38 +17,70 @@ import {
 } from "react-native";
 
 export default function RegisterScreen() {
-  const teamId = "team_001";
+  const [firstName, setFirstName] = useState("");
 
-  const role = "student";
+  const [email, setEmail] = useState("");
 
-  const members = ["user_001"];
+  const [password, setPassword] = useState("");
 
-  const ownerId = "user_001";
+  const handleRegister = async () => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
 
-  const createdAt = new Date().toISOString();
-  const handleRegister = () => {
-    Alert.alert("Register", "Firebase registration will be connected here.");
-    router.replace("/home");
+      const user = userCredential.user;
+
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+
+        email: user.email,
+
+        firstName: firstName,
+
+        teamId: "",
+
+        role: "student",
+
+        createdAt: new Date(),
+      });
+
+      Alert.alert("Success", "Account created!");
+
+      router.replace("/home");
+    } catch (error: any) {
+      Alert.alert("Error", error.message);
+    }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Create Account</Text>
 
-      <TextInput style={styles.input} placeholder="User ID" />
-
       <TextInput
         style={styles.input}
         placeholder="Email"
         keyboardType="email-address"
         autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
       />
-      <TextInput style={styles.input} placeholder="Full Name" />
+      <TextInput
+        style={styles.input}
+        placeholder="Full Name"
+        value={firstName}
+        onChangeText={setFirstName}
+      />
 
-      <TextInput style={styles.input} placeholder="Role" />
-
-      <TextInput style={styles.input} placeholder="Created At" />
-      <TextInput style={styles.input} placeholder="Password" secureTextEntry />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
       <Pressable style={styles.button} onPress={handleRegister}>
         <Text style={styles.buttonText}>Register</Text>
       </Pressable>
