@@ -5,6 +5,13 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 export default function HomeScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.headerRow}>
+        <Pressable onPress={() => router.replace("/login")}>
+          <Text style={styles.backArrow}>←</Text>
+        </Pressable>
+
+        <Text style={styles.headerText}>CampusMate</Text>
+      </View>
       <Text style={styles.title}>STEM Dashboard</Text>
       <Text style={styles.subtitle}>
         Learn science, technology, engineering and mathematics through tasks,
@@ -38,6 +45,24 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+
+  backArrow: {
+    fontSize: 30,
+    color: "#2563EB",
+    marginRight: 14,
+    fontWeight: "700",
+  },
+
+  headerText: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#2563EB",
   },
   title: {
     fontSize: 30,

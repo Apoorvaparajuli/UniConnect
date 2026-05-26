@@ -10,6 +10,15 @@ import {
 } from "react-native";
 
 export default function RegisterScreen() {
+  const teamId = "team_001";
+
+  const role = "student";
+
+  const members = ["user_001"];
+
+  const ownerId = "user_001";
+
+  const createdAt = new Date().toISOString();
   const handleRegister = () => {
     Alert.alert("Register", "Firebase registration will be connected here.");
     router.replace("/home");
@@ -19,7 +28,7 @@ export default function RegisterScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Create Account</Text>
 
-      <TextInput style={styles.input} placeholder="Full Name" />
+      <TextInput style={styles.input} placeholder="User ID" />
 
       <TextInput
         style={styles.input}
@@ -27,13 +36,12 @@ export default function RegisterScreen() {
         keyboardType="email-address"
         autoCapitalize="none"
       />
+      <TextInput style={styles.input} placeholder="Full Name" />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-      />
+      <TextInput style={styles.input} placeholder="Role" />
 
+      <TextInput style={styles.input} placeholder="Created At" />
+      <TextInput style={styles.input} placeholder="Password" secureTextEntry />
       <Pressable style={styles.button} onPress={handleRegister}>
         <Text style={styles.buttonText}>Register</Text>
       </Pressable>
